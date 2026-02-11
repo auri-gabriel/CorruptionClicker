@@ -1,26 +1,11 @@
 package com.aurigabriel.ui;
 
-import java.awt.BorderLayout;
-import java.awt.Dimension;
-import java.awt.GridLayout;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
-
-import javax.swing.BorderFactory;
-import javax.swing.JButton;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JToolBar;
-import javax.swing.JComboBox;
-import javax.swing.SwingConstants;
 
 import com.aurigabriel.core.GameConfig;
 import com.aurigabriel.core.GameLoop;
@@ -29,7 +14,25 @@ import com.aurigabriel.model.UpgradeInstance;
 import com.aurigabriel.model.UpgradeType;
 import com.aurigabriel.persistence.SaveManager;
 
-public class GameUI {
+import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TitledPane;
+import javafx.scene.control.ToolBar;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+
+public class GameUI extends Application {
   private static final int TICK_MILLIS = 100;
   private static final Path SAVE_PATH = Path.of(
       System.getProperty("user.home"),
@@ -41,169 +44,171 @@ public class GameUI {
   private static final double COST_GROWTH = 1.15;
   private static final Integer[] MULTIPLIER_OPTIONS = { 1, 5, 10, 50, 100 };
 
-  private final GameState game;
-  private final SaveManager saveManager;
-  private final GameLoop gameLoop;
-  private final Map<UpgradeInstance, JButton> upgradeButtons;
+  private GameState game;
+  private SaveManager saveManager;
+  private GameLoop gameLoop;
+  private Map<UpgradeInstance, Button> upgradeButtons;
 
-  private final JLabel cleanMoneyLabel;
-  private final JLabel dirtyMoneyLabel;
-  private final JLabel dirtyPerSecondLabel;
-  private final JLabel cleanFromDirtyLabel;
-  private final JLabel statusLabel;
-  private final JButton manualCleanButton;
-  private final JComboBox<Integer> multiplierBox;
+  private Label cleanMoneyLabel;
+  private Label dirtyMoneyLabel;
+  private Label dirtyPerSecondLabel;
+  private Label cleanFromDirtyLabel;
+  private Label statusLabel;
+  private Button manualCleanButton;
+  private ComboBox<Integer> multiplierBox;
 
-  public GameUI() {
-    this.game = new GameState(GameConfig.defaultUpgrades());
-    this.saveManager = new SaveManager(SAVE_PATH);
-    this.upgradeButtons = new LinkedHashMap<>();
+  @Override
+  public void start(Stage stage) {
+    initState();
 
-    this.cleanMoneyLabel = new JLabel();
-    this.dirtyMoneyLabel = new JLabel();
-    this.dirtyPerSecondLabel = new JLabel();
-    this.cleanFromDirtyLabel = new JLabel();
-    this.statusLabel = new JLabel(" ");
-    this.manualCleanButton = new JButton("Lavar manualmente");
-    this.multiplierBox = new JComboBox<>(MULTIPLIER_OPTIONS);
+    Parent root = buildContent();
+    Scene scene = new Scene(root, 760, 620);
 
-    JFrame frame = buildFrame();
-    loadOnStartup();
-    updateLabels();
+    stage.setTitle("Corruption Clicker");
+    stage.setMinWidth(640);
+    stage.setMinHeight(560);
+    stage.setScene(scene);
 
-    this.gameLoop = new GameLoop(TICK_MILLIS, this::onTick);
-    this.gameLoop.start();
-
-    frame.setVisible(true);
-  }
-
-  private JFrame buildFrame() {
-    JFrame frame = new JFrame("Corruption Clicker");
-    frame.setSize(760, 620);
-    frame.setMinimumSize(new Dimension(640, 560));
-    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-    frame.setLayout(new BorderLayout(12, 12));
-
-    JPanel north = new JPanel(new BorderLayout(8, 8));
-    north.add(buildToolbar(), BorderLayout.NORTH);
-    north.add(buildStatsPanel(), BorderLayout.CENTER);
-    frame.add(north, BorderLayout.NORTH);
-
-    JPanel center = new JPanel(new BorderLayout(8, 8));
-    center.add(buildActionsPanel(), BorderLayout.NORTH);
-    center.add(new JScrollPane(buildUpgradesPanel()), BorderLayout.CENTER);
-    frame.add(center, BorderLayout.CENTER);
-
-    frame.addWindowListener(new WindowAdapter() {
-      @Override
-      public void windowClosing(WindowEvent event) {
-        saveSilently("Autosave no fechamento.");
+    stage.setOnCloseRequest(event -> {
+      saveSilently("Autosave no fechamento.");
+      if (gameLoop != null) {
         gameLoop.stop();
       }
     });
 
-    return frame;
+    loadOnStartup();
+    updateLabels();
+
+    gameLoop = new GameLoop(TICK_MILLIS, this::onTick);
+    gameLoop.start();
+
+    stage.show();
   }
 
-  private JToolBar buildToolbar() {
-    JToolBar toolbar = new JToolBar();
-    toolbar.setFloatable(false);
+  private void initState() {
+    this.game = new GameState(GameConfig.defaultUpgrades());
+    this.saveManager = new SaveManager(SAVE_PATH);
+    this.upgradeButtons = new LinkedHashMap<>();
 
-    JButton saveButton = new JButton("Salvar");
-    saveButton.addActionListener(event -> saveSilently("Jogo salvo."));
+    this.cleanMoneyLabel = new Label();
+    this.dirtyMoneyLabel = new Label();
+    this.dirtyPerSecondLabel = new Label();
+    this.cleanFromDirtyLabel = new Label();
+    this.statusLabel = new Label(" ");
+    this.manualCleanButton = new Button("Lavar manualmente");
+    this.multiplierBox = new ComboBox<>();
+    this.multiplierBox.getItems().addAll(MULTIPLIER_OPTIONS);
+    this.multiplierBox.setValue(MULTIPLIER_OPTIONS[0]);
+  }
 
-    JButton loadButton = new JButton("Carregar");
-    loadButton.addActionListener(event -> {
+  private Parent buildContent() {
+    BorderPane root = new BorderPane();
+    root.setPadding(new Insets(12));
+
+    VBox north = new VBox(8, buildToolbar(), buildStatsPanel());
+    VBox center = new VBox(8, buildActionsPanel(), buildUpgradesPanel());
+
+    root.setTop(north);
+    root.setCenter(center);
+
+    return root;
+  }
+
+  private ToolBar buildToolbar() {
+    Button saveButton = new Button("Salvar");
+    saveButton.setOnAction(event -> saveSilently("Jogo salvo."));
+
+    Button loadButton = new Button("Carregar");
+    loadButton.setOnAction(event -> {
       loadSilently();
       updateLabels();
     });
 
-    toolbar.add(saveButton);
-    toolbar.add(loadButton);
-
-    return toolbar;
+    return new ToolBar(saveButton, loadButton);
   }
 
-  private JPanel buildStatsPanel() {
-    JPanel panel = new JPanel(new GridLayout(2, 2, 8, 8));
-    panel.setBorder(BorderFactory.createTitledBorder("Status"));
+  private TitledPane buildStatsPanel() {
+    GridPane grid = new GridPane();
+    grid.setHgap(8);
+    grid.setVgap(8);
 
-    panel.add(cleanMoneyLabel);
-    panel.add(dirtyMoneyLabel);
-    panel.add(dirtyPerSecondLabel);
-    panel.add(cleanFromDirtyLabel);
+    grid.add(cleanMoneyLabel, 0, 0);
+    grid.add(dirtyMoneyLabel, 1, 0);
+    grid.add(dirtyPerSecondLabel, 0, 1);
+    grid.add(cleanFromDirtyLabel, 1, 1);
 
-    return panel;
+    return wrapPane("Status", grid);
   }
 
-  private JPanel buildActionsPanel() {
-    JPanel panel = new JPanel(new BorderLayout(8, 8));
-    panel.setBorder(BorderFactory.createTitledBorder("Acoes"));
-
-    JPanel buttons = new JPanel(new GridLayout(1, 2, 8, 8));
-
-    JButton clickButton = new JButton("Receber propina");
-    clickButton.addActionListener(event -> {
+  private TitledPane buildActionsPanel() {
+    Button clickButton = new Button("Receber propina");
+    clickButton.setOnAction(event -> {
       game.click();
       updateLabels();
     });
 
-    manualCleanButton.addActionListener(event -> {
+    manualCleanButton.setOnAction(event -> {
       if (game.manualClean()) {
         updateLabels();
       }
     });
 
-    buttons.add(clickButton);
-    buttons.add(manualCleanButton);
+    HBox buttons = new HBox(8, clickButton, manualCleanButton);
 
-    statusLabel.setHorizontalAlignment(SwingConstants.CENTER);
+    statusLabel.setAlignment(Pos.CENTER);
+    statusLabel.setMaxWidth(Double.MAX_VALUE);
 
-    panel.add(buttons, BorderLayout.CENTER);
-    panel.add(statusLabel, BorderLayout.SOUTH);
-    return panel;
+    VBox content = new VBox(8, buttons, statusLabel);
+    return wrapPane("Acoes", content);
   }
 
-  private JPanel buildUpgradesPanel() {
-    JPanel panel = new JPanel(new BorderLayout(8, 8));
-    panel.setBorder(BorderFactory.createTitledBorder("Upgrades"));
+  private TitledPane buildUpgradesPanel() {
+    Label multiplierLabel = new Label("Comprar:");
+    multiplierBox.setOnAction(event -> updateLabels());
 
-    JPanel controls = new JPanel(new BorderLayout(8, 8));
-    JLabel multiplierLabel = new JLabel("Comprar:");
-    multiplierBox.addActionListener(event -> updateLabels());
-    controls.add(multiplierLabel, BorderLayout.WEST);
-    controls.add(multiplierBox, BorderLayout.CENTER);
+    HBox controls = new HBox(8, multiplierLabel, multiplierBox);
+    controls.setAlignment(Pos.CENTER_LEFT);
 
-    JPanel lists = new JPanel(new GridLayout(1, 2, 12, 12));
-    lists.add(buildUpgradeList("Politicos", UpgradeType.POLITICIAN));
-    lists.add(buildUpgradeList("Negocios", UpgradeType.BUSINESS));
+    TitledPane politicians = buildUpgradeList("Politicos", UpgradeType.POLITICIAN);
+    TitledPane businesses = buildUpgradeList("Negocios", UpgradeType.BUSINESS);
 
-    panel.add(controls, BorderLayout.NORTH);
-    panel.add(lists, BorderLayout.CENTER);
+    HBox lists = new HBox(12, politicians, businesses);
+    HBox.setHgrow(politicians, Priority.ALWAYS);
+    HBox.setHgrow(businesses, Priority.ALWAYS);
 
-    return panel;
+    VBox content = new VBox(8, controls, lists);
+    return wrapPane("Upgrades", content);
   }
 
-  private JScrollPane buildUpgradeList(String title, UpgradeType type) {
-    JPanel list = new JPanel(new GridLayout(0, 1, 6, 6));
-    list.setBorder(BorderFactory.createTitledBorder(title));
+  private TitledPane buildUpgradeList(String title, UpgradeType type) {
+    VBox list = new VBox(6);
 
     for (UpgradeInstance instance : game.getUpgrades()) {
       if (instance.getDefinition().getType() != type) {
         continue;
       }
 
-      JButton button = new JButton();
-      button.addActionListener(event -> {
-        buyUpgradeMultiple(instance.getDefinition().getId());
-      });
+      Button button = new Button();
+      button.setMaxWidth(Double.MAX_VALUE);
+      button.setOnAction(event -> buyUpgradeMultiple(instance.getDefinition().getId()));
       upgradeButtons.put(instance, button);
-      list.add(button);
+      list.getChildren().add(button);
     }
 
-    JScrollPane scroll = new JScrollPane(list);
-    scroll.setBorder(BorderFactory.createEmptyBorder());
-    return scroll;
+    ScrollPane scroll = new ScrollPane(list);
+    scroll.setFitToWidth(true);
+    scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+
+    TitledPane titled = new TitledPane(title, scroll);
+    titled.setCollapsible(false);
+    titled.setMaxWidth(Double.MAX_VALUE);
+    return titled;
+  }
+
+  private TitledPane wrapPane(String title, Parent content) {
+    TitledPane pane = new TitledPane(title, content);
+    pane.setCollapsible(false);
+    return pane;
   }
 
   private void onTick(double deltaSeconds) {
@@ -216,26 +221,26 @@ public class GameUI {
     dirtyMoneyLabel.setText("Dinheiro sujo: " + formatMoney(game.getDirtyMoney()));
     dirtyPerSecondLabel.setText("Sujo/seg: " + formatRate(game.getDirtyMoneyPerSecond()));
     cleanFromDirtyLabel.setText("Lavagem/seg: " + formatRate(game.getCleanFromDirtyPerSecond()));
-    manualCleanButton.setEnabled(game.getDirtyMoney() >= 1);
+    manualCleanButton.setDisable(game.getDirtyMoney() < 1);
     updateUpgradeButtons();
   }
 
   private void updateUpgradeButtons() {
     int multiplier = getSelectedMultiplier();
-    for (Map.Entry<UpgradeInstance, JButton> entry : upgradeButtons.entrySet()) {
+    for (Map.Entry<UpgradeInstance, Button> entry : upgradeButtons.entrySet()) {
       UpgradeInstance instance = entry.getKey();
-      JButton button = entry.getValue();
+      Button button = entry.getValue();
       String name = instance.getDefinition().getName();
       String cost = formatMoney(calculateTotalCost(instance, multiplier));
       int quantity = instance.getQuantity();
       String costLabel = multiplier == 1 ? "Custo: " : "Custo x" + multiplier + ": ";
       button.setText(name + " | " + costLabel + cost + " | Qtde: " + quantity);
-      button.setEnabled(game.getCleanMoney() >= calculateTotalCost(instance, multiplier));
+      button.setDisable(game.getCleanMoney() < calculateTotalCost(instance, multiplier));
     }
   }
 
   private int getSelectedMultiplier() {
-    Integer selected = (Integer) multiplierBox.getSelectedItem();
+    Integer selected = multiplierBox.getValue();
     return selected == null ? 1 : selected;
   }
 

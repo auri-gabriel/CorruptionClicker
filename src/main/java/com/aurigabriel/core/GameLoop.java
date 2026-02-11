@@ -2,25 +2,28 @@ package com.aurigabriel.core;
 
 import java.util.function.DoubleConsumer;
 
-import javax.swing.Timer;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.util.Duration;
 
 public class GameLoop {
-  private final Timer timer;
+  private final Timeline timeline;
   private final DoubleConsumer onTick;
   private long lastNanos;
 
   public GameLoop(int tickMillis, DoubleConsumer onTick) {
-    this.timer = new Timer(tickMillis, event -> tick());
     this.onTick = onTick;
+    this.timeline = new Timeline(new KeyFrame(Duration.millis(tickMillis), event -> tick()));
+    this.timeline.setCycleCount(Timeline.INDEFINITE);
   }
 
   public void start() {
     lastNanos = System.nanoTime();
-    timer.start();
+    timeline.play();
   }
 
   public void stop() {
-    timer.stop();
+    timeline.stop();
   }
 
   private void tick() {

@@ -1,11 +1,11 @@
 package com.aurigabriel;
 
-import javax.swing.SwingUtilities;
-
 import com.aurigabriel.ui.GameUI;
+
+import javafx.application.Application;
 
 public class Main {
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(GameUI::new);
+        Application.launch(GameUI.class, args);
     }
 }
