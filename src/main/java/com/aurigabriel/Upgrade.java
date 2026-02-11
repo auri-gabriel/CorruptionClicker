@@ -2,24 +2,35 @@ package com.aurigabriel;
 
 public class Upgrade {
 
+  public enum UpgradeType {
+    POLITICIAN,
+    BUSINESS
+  }
+
   private String name;
   private double baseCost;
   private double cost;
   private double production;
+  private UpgradeType type;
   private int quantity = 0;
 
-  public Upgrade(String name, double baseCost, double production) {
+  public Upgrade(String name, double baseCost, double production, UpgradeType type) {
     this.name = name;
     this.baseCost = baseCost;
     this.cost = baseCost;
     this.production = production;
+    this.type = type;
   }
 
   public boolean buy(Game game) {
-    if (game.getInfluence() >= cost) {
-      game.addInfluence(-cost);
+    if (game.getCleanMoney() >= cost) {
+      game.addCleanMoney(-cost);
       quantity++;
-      game.increaseInfluencePerSecond(production);
+      if (type == UpgradeType.POLITICIAN) {
+        game.increaseDirtyMoneyPerSecond(production);
+      } else {
+        game.increaseCleanFromDirtyPerSecond(production);
+      }
       increaseCost();
       return true;
     }
@@ -31,6 +42,10 @@ public class Upgrade {
   }
 
   public String getDisplayText() {
-    return name + " | Cost: " + (int) cost + " | Owned: " + quantity;
+    return name + " | Custo: " + (int) cost + " | Qtde: " + quantity;
+  }
+
+  public double getCost() {
+    return cost;
   }
 }
