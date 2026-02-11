@@ -15,11 +15,17 @@ public final class GameConfig {
     List<UpgradeDefinition> definitions = new ArrayList<>();
 
     definitions.add(new UpgradeDefinition("pol_ver", "Vereador", 10, 0.5, UpgradeType.POLITICIAN));
+    definitions.add(new UpgradeDefinition("pol_pref", "Prefeito", 150, 3.5, UpgradeType.POLITICIAN));
+    definitions.add(new UpgradeDefinition("pol_vice_pref", "Vice-Prefeito", 350, 7, UpgradeType.POLITICIAN));
     definitions.add(new UpgradeDefinition("pol_dep_est", "Deputado Estadual", 50, 2, UpgradeType.POLITICIAN));
     definitions.add(new UpgradeDefinition("pol_dep_fed", "Deputado Federal", 200, 6, UpgradeType.POLITICIAN));
     definitions.add(new UpgradeDefinition("pol_sen", "Senador", 800, 18, UpgradeType.POLITICIAN));
     definitions.add(new UpgradeDefinition("pol_gov", "Governador", 2500, 45, UpgradeType.POLITICIAN));
+    definitions.add(new UpgradeDefinition("pol_juiz", "Juiz", 1200, 25, UpgradeType.POLITICIAN));
+    definitions.add(new UpgradeDefinition("pol_des", "Desembargador", 4000, 70, UpgradeType.POLITICIAN));
+    definitions.add(new UpgradeDefinition("pol_min", "Ministro", 5000, 80, UpgradeType.POLITICIAN));
     definitions.add(new UpgradeDefinition("pol_pres", "Presidente", 10000, 120, UpgradeType.POLITICIAN));
+    definitions.add(new UpgradeDefinition("pol_pri_min", "Primeiro-Ministro", 20000, 200, UpgradeType.POLITICIAN));
 
     definitions.add(new UpgradeDefinition("bus_lav", "Lavanderia", 25, 0.3, UpgradeType.BUSINESS));
     definitions.add(new UpgradeDefinition("bus_con", "Construtora", 150, 1.5, UpgradeType.BUSINESS));
