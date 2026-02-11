@@ -1,0 +1,139 @@
+/* Retro pixel UI theme */
+
+.game-root {
+  -fx-font-family:
+    'Press Start 2P', 'Pixel Operator', 'Lucida Console', monospace;
+  -fx-background-color:
+    linear-gradient(to bottom, #0b1a12, #10271b),
+    linear-gradient(to right, rgba(120, 255, 190, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(120, 255, 190, 0.03) 1px, transparent 1px);
+  -fx-background-size:
+    100% 100%,
+    12px 12px,
+    12px 12px;
+  -fx-background-insets: 0;
+  -fx-text-fill: #e7fff1;
+}
+
+.game-title {
+  -fx-font-size: 20px;
+  -fx-text-fill: #76f3a1;
+  -fx-effect: dropshadow(gaussian, rgba(118, 243, 161, 0.5), 10, 0.2, 0, 0);
+}
+
+.hud-bar {
+  -fx-background-color: #112015;
+  -fx-border-color: #76f3a1;
+  -fx-border-width: 2;
+  -fx-padding: 6 8;
+}
+
+.pixel-pane {
+  -fx-text-fill: #e7fff1;
+  -fx-background-color: #112015;
+  -fx-border-color: #4be38d;
+  -fx-border-width: 2;
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.6), 8, 0.2, 0, 2);
+}
+
+.pixel-pane > .title {
+  -fx-background-color: #153021;
+  -fx-border-color: #4be38d;
+  -fx-border-width: 0 0 2 0;
+  -fx-text-fill: #76f3a1;
+  -fx-font-size: 12px;
+}
+
+.pixel-pane > .content {
+  -fx-background-color: #112015;
+}
+
+.stat-label {
+  -fx-font-size: 12px;
+  -fx-text-fill: #e7fff1;
+}
+
+.status-line {
+  -fx-text-fill: #76f3a1;
+  -fx-font-size: 11px;
+}
+
+.button,
+.combo-box {
+  -fx-background-color: #153021;
+  -fx-text-fill: #e7fff1;
+  -fx-border-color: #4be38d;
+  -fx-border-width: 2;
+  -fx-background-radius: 0;
+  -fx-border-radius: 0;
+  -fx-padding: 6 10;
+}
+
+.button:pressed {
+  -fx-translate-y: 1;
+  -fx-background-color: #0f2418;
+}
+
+.primary-action {
+  -fx-border-color: #76f3a1;
+  -fx-text-fill: #76f3a1;
+}
+
+.secondary-action {
+  -fx-border-color: #7ee9c3;
+  -fx-text-fill: #7ee9c3;
+}
+
+.shop-button {
+  -fx-font-size: 11px;
+  -fx-background-color: #13281d;
+}
+
+.combo-box .list-cell {
+  -fx-text-fill: #e7fff1;
+  -fx-background-color: #153021;
+}
+
+.scroll-pane {
+  -fx-background: #112015;
+  -fx-background-color: #112015;
+  -fx-border-color: #4be38d;
+  -fx-border-width: 2;
+}
+
+.scroll-pane .viewport {
+  -fx-background-color: #112015;
+}
+
+.scroll-bar:vertical,
+.scroll-bar:horizontal {
+  -fx-background-color: #0f2418;
+  -fx-border-color: #4be38d;
+  -fx-border-width: 2;
+}
+
+.scroll-bar .track {
+  -fx-background-color: #10271b;
+}
+
+.scroll-bar .thumb {
+  -fx-background-color: #4be38d;
+  -fx-background-insets: 2;
+  -fx-background-radius: 0;
+}
+
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+  -fx-background-color: #153021;
+  -fx-border-color: #4be38d;
+  -fx-border-width: 2;
+}
+
+.scroll-bar .increment-arrow,
+.scroll-bar .decrement-arrow {
+  -fx-background-color: #e7fff1;
+}
+
+.label {
+  -fx-text-fill: #e7fff1;
+}

@@ -14,9 +14,11 @@ import com.aurigabriel.model.UpgradeInstance;
 import com.aurigabriel.model.UpgradeType;
 import com.aurigabriel.persistence.SaveManager;
 
+import javafx.animation.ScaleTransition;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -31,6 +33,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 public class GameUI extends Application {
   private static final int TICK_MILLIS = 100;
@@ -63,6 +66,7 @@ public class GameUI extends Application {
 
     Parent root = buildContent();
     Scene scene = new Scene(root, 760, 620);
+    scene.getStylesheets().add(GameUI.class.getResource("/styles/pixel.css").toExternalForm());
 
     stage.setTitle("Corruption Clicker");
     stage.setMinWidth(640);
@@ -91,10 +95,15 @@ public class GameUI extends Application {
     this.upgradeButtons = new LinkedHashMap<>();
 
     this.cleanMoneyLabel = new Label();
+    this.cleanMoneyLabel.getStyleClass().add("stat-label");
     this.dirtyMoneyLabel = new Label();
+    this.dirtyMoneyLabel.getStyleClass().add("stat-label");
     this.dirtyPerSecondLabel = new Label();
+    this.dirtyPerSecondLabel.getStyleClass().add("stat-label");
     this.cleanFromDirtyLabel = new Label();
+    this.cleanFromDirtyLabel.getStyleClass().add("stat-label");
     this.statusLabel = new Label(" ");
+    this.statusLabel.getStyleClass().add("status-line");
     this.manualCleanButton = new Button("Lavar manualmente");
     this.multiplierBox = new ComboBox<>();
     this.multiplierBox.getItems().addAll(MULTIPLIER_OPTIONS);
@@ -104,8 +113,12 @@ public class GameUI extends Application {
   private Parent buildContent() {
     BorderPane root = new BorderPane();
     root.setPadding(new Insets(12));
+    root.getStyleClass().add("game-root");
 
-    VBox north = new VBox(8, buildToolbar(), buildStatsPanel());
+    Label title = new Label("CORRUPTION CLICKER");
+    title.getStyleClass().add("game-title");
+
+    VBox north = new VBox(8, title, buildToolbar(), buildStatsPanel());
     VBox center = new VBox(8, buildActionsPanel(), buildUpgradesPanel());
 
     root.setTop(north);
@@ -124,7 +137,9 @@ public class GameUI extends Application {
       updateLabels();
     });
 
-    return new ToolBar(saveButton, loadButton);
+    ToolBar bar = new ToolBar(saveButton, loadButton);
+    bar.getStyleClass().add("hud-bar");
+    return bar;
   }
 
   private TitledPane buildStatsPanel() {
@@ -143,15 +158,19 @@ public class GameUI extends Application {
   private TitledPane buildActionsPanel() {
     Button clickButton = new Button("Receber propina");
     clickButton.setOnAction(event -> {
+      playClickPulse(clickButton);
       game.click();
       updateLabels();
     });
+    clickButton.getStyleClass().add("primary-action");
 
     manualCleanButton.setOnAction(event -> {
       if (game.manualClean()) {
+        playClickPulse(manualCleanButton);
         updateLabels();
       }
     });
+    manualCleanButton.getStyleClass().add("secondary-action");
 
     HBox buttons = new HBox(8, clickButton, manualCleanButton);
 
@@ -190,7 +209,11 @@ public class GameUI extends Application {
 
       Button button = new Button();
       button.setMaxWidth(Double.MAX_VALUE);
-      button.setOnAction(event -> buyUpgradeMultiple(instance.getDefinition().getId()));
+      button.setOnAction(event -> {
+        playClickPulse(button);
+        buyUpgradeMultiple(instance.getDefinition().getId());
+      });
+      button.getStyleClass().add("shop-button");
       upgradeButtons.put(instance, button);
       list.getChildren().add(button);
     }
@@ -202,13 +225,26 @@ public class GameUI extends Application {
     TitledPane titled = new TitledPane(title, scroll);
     titled.setCollapsible(false);
     titled.setMaxWidth(Double.MAX_VALUE);
+    titled.getStyleClass().add("pixel-pane");
     return titled;
   }
 
   private TitledPane wrapPane(String title, Parent content) {
     TitledPane pane = new TitledPane(title, content);
     pane.setCollapsible(false);
+    pane.getStyleClass().add("pixel-pane");
     return pane;
+  }
+
+  private void playClickPulse(Node node) {
+    ScaleTransition pulse = new ScaleTransition(Duration.millis(120), node);
+    pulse.setFromX(1.0);
+    pulse.setFromY(1.0);
+    pulse.setToX(1.06);
+    pulse.setToY(1.06);
+    pulse.setAutoReverse(true);
+    pulse.setCycleCount(2);
+    pulse.play();
   }
 
   private void onTick(double deltaSeconds) {
