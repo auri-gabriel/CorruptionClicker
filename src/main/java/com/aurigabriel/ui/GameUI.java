@@ -18,6 +18,8 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JToolBar;
+import javax.swing.JComboBox;
 import javax.swing.SwingConstants;
 
 import com.aurigabriel.core.GameConfig;
@@ -36,6 +38,8 @@ public class GameUI {
 
   private static final DecimalFormat WHOLE_FORMAT = new DecimalFormat("0", symbols());
   private static final DecimalFormat ONE_DECIMAL_FORMAT = new DecimalFormat("0.0", symbols());
+  private static final double COST_GROWTH = 1.15;
+  private static final Integer[] MULTIPLIER_OPTIONS = { 1, 5, 10, 50, 100 };
 
   private final GameState game;
   private final SaveManager saveManager;
@@ -48,6 +52,7 @@ public class GameUI {
   private final JLabel cleanFromDirtyLabel;
   private final JLabel statusLabel;
   private final JButton manualCleanButton;
+  private final JComboBox<Integer> multiplierBox;
 
   public GameUI() {
     this.game = new GameState(GameConfig.defaultUpgrades());
@@ -60,6 +65,7 @@ public class GameUI {
     this.cleanFromDirtyLabel = new JLabel();
     this.statusLabel = new JLabel(" ");
     this.manualCleanButton = new JButton("Lavar manualmente");
+    this.multiplierBox = new JComboBox<>(MULTIPLIER_OPTIONS);
 
     JFrame frame = buildFrame();
     loadOnStartup();
@@ -78,7 +84,10 @@ public class GameUI {
     frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     frame.setLayout(new BorderLayout(12, 12));
 
-    frame.add(buildStatsPanel(), BorderLayout.NORTH);
+    JPanel north = new JPanel(new BorderLayout(8, 8));
+    north.add(buildToolbar(), BorderLayout.NORTH);
+    north.add(buildStatsPanel(), BorderLayout.CENTER);
+    frame.add(north, BorderLayout.NORTH);
     frame.add(buildActionsPanel(), BorderLayout.CENTER);
     frame.add(buildUpgradesPanel(), BorderLayout.SOUTH);
 
@@ -91,6 +100,25 @@ public class GameUI {
     });
 
     return frame;
+  }
+
+  private JToolBar buildToolbar() {
+    JToolBar toolbar = new JToolBar();
+    toolbar.setFloatable(false);
+
+    JButton saveButton = new JButton("Salvar");
+    saveButton.addActionListener(event -> saveSilently("Jogo salvo."));
+
+    JButton loadButton = new JButton("Carregar");
+    loadButton.addActionListener(event -> {
+      loadSilently();
+      updateLabels();
+    });
+
+    toolbar.add(saveButton);
+    toolbar.add(loadButton);
+
+    return toolbar;
   }
 
   private JPanel buildStatsPanel() {
@@ -109,7 +137,7 @@ public class GameUI {
     JPanel panel = new JPanel(new BorderLayout(8, 8));
     panel.setBorder(BorderFactory.createTitledBorder("Acoes"));
 
-    JPanel buttons = new JPanel(new GridLayout(2, 2, 8, 8));
+    JPanel buttons = new JPanel(new GridLayout(1, 2, 8, 8));
 
     JButton clickButton = new JButton("Receber propina");
     clickButton.addActionListener(event -> {
@@ -123,19 +151,8 @@ public class GameUI {
       }
     });
 
-    JButton saveButton = new JButton("Salvar");
-    saveButton.addActionListener(event -> saveSilently("Jogo salvo."));
-
-    JButton loadButton = new JButton("Carregar");
-    loadButton.addActionListener(event -> {
-      loadSilently();
-      updateLabels();
-    });
-
     buttons.add(clickButton);
     buttons.add(manualCleanButton);
-    buttons.add(saveButton);
-    buttons.add(loadButton);
 
     statusLabel.setHorizontalAlignment(SwingConstants.CENTER);
 
@@ -145,11 +162,21 @@ public class GameUI {
   }
 
   private JPanel buildUpgradesPanel() {
-    JPanel panel = new JPanel(new GridLayout(1, 2, 12, 12));
+    JPanel panel = new JPanel(new BorderLayout(8, 8));
     panel.setBorder(BorderFactory.createTitledBorder("Upgrades"));
 
-    panel.add(buildUpgradeList("Politicos", UpgradeType.POLITICIAN));
-    panel.add(buildUpgradeList("Negocios", UpgradeType.BUSINESS));
+    JPanel controls = new JPanel(new BorderLayout(8, 8));
+    JLabel multiplierLabel = new JLabel("Comprar:");
+    multiplierBox.addActionListener(event -> updateLabels());
+    controls.add(multiplierLabel, BorderLayout.WEST);
+    controls.add(multiplierBox, BorderLayout.CENTER);
+
+    JPanel lists = new JPanel(new GridLayout(1, 2, 12, 12));
+    lists.add(buildUpgradeList("Politicos", UpgradeType.POLITICIAN));
+    lists.add(buildUpgradeList("Negocios", UpgradeType.BUSINESS));
+
+    panel.add(controls, BorderLayout.NORTH);
+    panel.add(lists, BorderLayout.CENTER);
 
     return panel;
   }
@@ -165,9 +192,7 @@ public class GameUI {
 
       JButton button = new JButton();
       button.addActionListener(event -> {
-        if (game.buyUpgrade(instance.getDefinition().getId())) {
-          updateLabels();
-        }
+        buyUpgradeMultiple(instance.getDefinition().getId());
       });
       upgradeButtons.put(instance, button);
       list.add(button);
@@ -193,15 +218,49 @@ public class GameUI {
   }
 
   private void updateUpgradeButtons() {
+    int multiplier = getSelectedMultiplier();
     for (Map.Entry<UpgradeInstance, JButton> entry : upgradeButtons.entrySet()) {
       UpgradeInstance instance = entry.getKey();
       JButton button = entry.getValue();
       String name = instance.getDefinition().getName();
-      String cost = formatMoney(instance.getCost());
+      String cost = formatMoney(calculateTotalCost(instance, multiplier));
       int quantity = instance.getQuantity();
-      button.setText(name + " | Custo: " + cost + " | Qtde: " + quantity);
-      button.setEnabled(game.getCleanMoney() >= instance.getCost());
+      String costLabel = multiplier == 1 ? "Custo: " : "Custo x" + multiplier + ": ";
+      button.setText(name + " | " + costLabel + cost + " | Qtde: " + quantity);
+      button.setEnabled(game.getCleanMoney() >= calculateTotalCost(instance, multiplier));
     }
+  }
+
+  private int getSelectedMultiplier() {
+    Integer selected = (Integer) multiplierBox.getSelectedItem();
+    return selected == null ? 1 : selected;
+  }
+
+  private void buyUpgradeMultiple(String upgradeId) {
+    int multiplier = getSelectedMultiplier();
+    boolean purchased = false;
+    for (int i = 0; i < multiplier; i++) {
+      if (!game.buyUpgrade(upgradeId)) {
+        break;
+      }
+      purchased = true;
+    }
+    if (purchased) {
+      updateLabels();
+    }
+  }
+
+  private double calculateTotalCost(UpgradeInstance instance, int count) {
+    if (count <= 0) {
+      return 0;
+    }
+    double baseCost = instance.getDefinition().getBaseCost();
+    int quantity = instance.getQuantity();
+    double total = 0;
+    for (int i = 0; i < count; i++) {
+      total += baseCost * Math.pow(COST_GROWTH, quantity + i);
+    }
+    return total;
   }
 
   private void loadOnStartup() {
