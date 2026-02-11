@@ -88,8 +88,11 @@ public class GameUI {
     north.add(buildToolbar(), BorderLayout.NORTH);
     north.add(buildStatsPanel(), BorderLayout.CENTER);
     frame.add(north, BorderLayout.NORTH);
-    frame.add(buildActionsPanel(), BorderLayout.CENTER);
-    frame.add(buildUpgradesPanel(), BorderLayout.SOUTH);
+
+    JPanel center = new JPanel(new BorderLayout(8, 8));
+    center.add(buildActionsPanel(), BorderLayout.NORTH);
+    center.add(new JScrollPane(buildUpgradesPanel()), BorderLayout.CENTER);
+    frame.add(center, BorderLayout.CENTER);
 
     frame.addWindowListener(new WindowAdapter() {
       @Override
