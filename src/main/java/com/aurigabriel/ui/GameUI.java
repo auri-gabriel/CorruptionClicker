@@ -3,6 +3,9 @@ package com.aurigabriel.ui;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -13,6 +16,7 @@ import com.aurigabriel.model.GameState;
 import com.aurigabriel.model.UpgradeInstance;
 import com.aurigabriel.model.UpgradeType;
 import com.aurigabriel.persistence.SaveManager;
+import com.aurigabriel.persistence.SaveSlotInfo;
 
 import javafx.animation.ScaleTransition;
 import javafx.application.Application;
@@ -26,7 +30,6 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TitledPane;
-import javafx.scene.control.ToolBar;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -37,20 +40,26 @@ import javafx.util.Duration;
 
 public class GameUI extends Application {
   private static final int TICK_MILLIS = 100;
-  private static final Path SAVE_PATH = Path.of(
+  private static final Path SAVE_DIR = Path.of(
       System.getProperty("user.home"),
-      ".corruptionclicker",
-      "save.properties");
+      ".corruptionclicker");
 
   private static final DecimalFormat WHOLE_FORMAT = new DecimalFormat("0", symbols());
   private static final DecimalFormat ONE_DECIMAL_FORMAT = new DecimalFormat("0.0", symbols());
   private static final double COST_GROWTH = 1.15;
   private static final Integer[] MULTIPLIER_OPTIONS = { 1, 5, 10, 50, 100 };
+  private static final Integer[] SAVE_SLOTS = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+  private static final DateTimeFormatter SAVE_TIME_FORMAT = DateTimeFormatter
+      .ofPattern("yyyy-MM-dd HH:mm")
+      .withZone(ZoneId.systemDefault());
 
   private GameState game;
   private SaveManager saveManager;
   private GameLoop gameLoop;
   private Map<UpgradeInstance, Button> upgradeButtons;
+  private Map<Integer, SaveSlotRow> saveSlotRows;
+  private int activeSlot;
+  private Stage savesStage;
 
   private Label cleanMoneyLabel;
   private Label dirtyMoneyLabel;
@@ -74,7 +83,7 @@ public class GameUI extends Application {
     stage.setScene(scene);
 
     stage.setOnCloseRequest(event -> {
-      saveSilently("Autosave no fechamento.");
+      saveSilently(activeSlot, "Autosave no fechamento.");
       if (gameLoop != null) {
         gameLoop.stop();
       }
@@ -91,8 +100,10 @@ public class GameUI extends Application {
 
   private void initState() {
     this.game = new GameState(GameConfig.defaultUpgrades());
-    this.saveManager = new SaveManager(SAVE_PATH);
+    this.saveManager = new SaveManager(SAVE_DIR);
     this.upgradeButtons = new LinkedHashMap<>();
+    this.saveSlotRows = new LinkedHashMap<>();
+    this.activeSlot = SAVE_SLOTS[0];
 
     this.cleanMoneyLabel = new Label();
     this.cleanMoneyLabel.getStyleClass().add("stat-label");
@@ -118,28 +129,13 @@ public class GameUI extends Application {
     Label title = new Label("CORRUPTION CLICKER");
     title.getStyleClass().add("game-title");
 
-    VBox north = new VBox(8, title, buildToolbar(), buildStatsPanel());
+    VBox north = new VBox(8, title, buildStatsPanel());
     VBox center = new VBox(8, buildActionsPanel(), buildUpgradesPanel());
 
     root.setTop(north);
     root.setCenter(center);
 
     return root;
-  }
-
-  private ToolBar buildToolbar() {
-    Button saveButton = new Button("Salvar");
-    saveButton.setOnAction(event -> saveSilently("Jogo salvo."));
-
-    Button loadButton = new Button("Carregar");
-    loadButton.setOnAction(event -> {
-      loadSilently();
-      updateLabels();
-    });
-
-    ToolBar bar = new ToolBar(saveButton, loadButton);
-    bar.getStyleClass().add("hud-bar");
-    return bar;
   }
 
   private TitledPane buildStatsPanel() {
@@ -172,7 +168,10 @@ public class GameUI extends Application {
     });
     manualCleanButton.getStyleClass().add("secondary-action");
 
-    HBox buttons = new HBox(8, clickButton, manualCleanButton);
+    Button savesButton = new Button("Saves");
+    savesButton.setOnAction(event -> openSavesWindow());
+
+    HBox buttons = new HBox(8, clickButton, manualCleanButton, savesButton);
 
     statusLabel.setAlignment(Pos.CENTER);
     statusLabel.setMaxWidth(Double.MAX_VALUE);
@@ -197,6 +196,69 @@ public class GameUI extends Application {
 
     VBox content = new VBox(8, controls, lists);
     return wrapPane("Upgrades", content);
+  }
+
+  private TitledPane buildSavesPanel() {
+    VBox list = new VBox(6);
+    for (Integer slot : SAVE_SLOTS) {
+      SaveSlotRow row = buildSaveSlotRow(slot);
+      saveSlotRows.put(slot, row);
+      list.getChildren().add(row.root);
+    }
+
+    ScrollPane scroll = new ScrollPane(list);
+    scroll.setFitToWidth(true);
+    scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+
+    TitledPane pane = wrapPane("Saves", scroll);
+    return pane;
+  }
+
+  private void openSavesWindow() {
+    if (savesStage == null) {
+      Parent content = buildSavesPanel();
+      Scene scene = new Scene(content, 520, 560);
+      scene.getStylesheets().add(GameUI.class.getResource("/styles/pixel.css").toExternalForm());
+
+      savesStage = new Stage();
+      savesStage.setTitle("Saves");
+      savesStage.setMinWidth(420);
+      savesStage.setMinHeight(420);
+      savesStage.setScene(scene);
+      savesStage.setOnCloseRequest(event -> {
+        event.consume();
+        savesStage.hide();
+      });
+    }
+
+    refreshSaveSlots();
+    savesStage.show();
+    savesStage.toFront();
+  }
+
+  private SaveSlotRow buildSaveSlotRow(int slot) {
+    Label title = new Label();
+    title.getStyleClass().add("stat-label");
+
+    Label summary = new Label();
+    summary.getStyleClass().add("status-line");
+    summary.setMaxWidth(Double.MAX_VALUE);
+
+    Button loadButton = new Button("Carregar");
+    loadButton.setOnAction(event -> {
+      loadSilently(slot);
+      updateLabels();
+    });
+
+    Button saveButton = new Button("Salvar");
+    saveButton.setOnAction(event -> saveSilently(slot, "Jogo salvo."));
+
+    HBox row = new HBox(8, title, summary, loadButton, saveButton);
+    row.setAlignment(Pos.CENTER_LEFT);
+    HBox.setHgrow(summary, Priority.ALWAYS);
+    row.getStyleClass().add("hud-bar");
+
+    return new SaveSlotRow(slot, row, title, summary, loadButton, saveButton);
   }
 
   private TitledPane buildUpgradeList(String title, UpgradeType type) {
@@ -308,28 +370,65 @@ public class GameUI extends Application {
   }
 
   private void loadOnStartup() {
-    loadSilently();
+    loadSilently(activeSlot);
   }
 
-  private void saveSilently(String message) {
+  private void saveSilently(int slot, String message) {
     try {
-      saveManager.save(game);
+      saveManager.save(game, slot);
+      activeSlot = slot;
+      refreshSaveSlots();
       statusLabel.setText(message);
     } catch (Exception ex) {
       statusLabel.setText("Falha ao salvar.");
     }
   }
 
-  private void loadSilently() {
+  private void loadSilently(int slot) {
     try {
-      if (saveManager.load(game)) {
+      if (saveManager.load(game, slot)) {
+        activeSlot = slot;
         statusLabel.setText("Jogo carregado.");
       } else {
         statusLabel.setText("Nenhum save encontrado.");
       }
+      refreshSaveSlots();
     } catch (Exception ex) {
       statusLabel.setText("Falha ao carregar.");
     }
+  }
+
+  private void refreshSaveSlots() {
+    if (saveSlotRows.isEmpty()) {
+      return;
+    }
+    for (SaveSlotRow row : saveSlotRows.values()) {
+      try {
+        SaveSlotInfo info = saveManager.readSlotInfo(row.slot);
+        row.titleLabel.setText(formatSlotTitle(info.getSlot()));
+        row.summaryLabel.setText(formatSlotSummary(info));
+      } catch (Exception ex) {
+        row.titleLabel.setText(formatSlotTitle(row.slot));
+        row.summaryLabel.setText("Erro ao ler slot.");
+      }
+    }
+  }
+
+  private String formatSlotTitle(int slot) {
+    String title = "Slot " + slot;
+    if (slot == activeSlot) {
+      title += " (ativo)";
+    }
+    return title;
+  }
+
+  private String formatSlotSummary(SaveSlotInfo info) {
+    if (!info.exists()) {
+      return "Vazio";
+    }
+    String when = SAVE_TIME_FORMAT.format(Instant.ofEpochMilli(info.getLastModifiedMillis()));
+    return "Limp: " + formatMoney(info.getCleanMoney()) + " | Sujo: " + formatMoney(info.getDirtyMoney()) + " | "
+        + when;
   }
 
   private static String formatMoney(double value) {
@@ -366,5 +465,24 @@ public class GameUI extends Application {
 
   private static DecimalFormatSymbols symbols() {
     return DecimalFormatSymbols.getInstance(Locale.US);
+  }
+
+  private static final class SaveSlotRow {
+    private final int slot;
+    private final HBox root;
+    private final Label titleLabel;
+    private final Label summaryLabel;
+    private final Button loadButton;
+    private final Button saveButton;
+
+    private SaveSlotRow(int slot, HBox root, Label titleLabel, Label summaryLabel, Button loadButton,
+        Button saveButton) {
+      this.slot = slot;
+      this.root = root;
+      this.titleLabel = titleLabel;
+      this.summaryLabel = summaryLabel;
+      this.loadButton = loadButton;
+      this.saveButton = saveButton;
+    }
   }
 }

@@ -20,13 +20,21 @@ public class SaveManager {
   private static final String UPGRADE_PREFIX = "upgrade.";
   private static final String QUANTITY_SUFFIX = ".quantity";
 
-  private final Path saveFile;
+  private final Path saveDirectory;
 
-  public SaveManager(Path saveFile) {
-    this.saveFile = saveFile;
+  public SaveManager(Path saveDirectory) {
+    this.saveDirectory = saveDirectory;
   }
 
   public void save(GameState state) throws IOException {
+    save(state, 1);
+  }
+
+  public boolean load(GameState state) throws IOException {
+    return load(state, 1);
+  }
+
+  public void save(GameState state, int slot) throws IOException {
     Properties properties = new Properties();
     properties.setProperty(VERSION_KEY, "1");
     properties.setProperty(CLEAN_MONEY_KEY, Double.toString(state.getCleanMoney()));
@@ -37,16 +45,17 @@ public class SaveManager {
       properties.setProperty(key, Integer.toString(instance.getQuantity()));
     }
 
-    Files.createDirectories(saveFile.getParent());
+    Files.createDirectories(saveDirectory);
     try (OutputStream stream = Files.newOutputStream(
-        saveFile,
+        resolveSlot(slot),
         StandardOpenOption.CREATE,
         StandardOpenOption.TRUNCATE_EXISTING)) {
       properties.store(stream, "Corruption Clicker Save");
     }
   }
 
-  public boolean load(GameState state) throws IOException {
+  public boolean load(GameState state, int slot) throws IOException {
+    Path saveFile = resolveSlot(slot);
     if (!Files.exists(saveFile)) {
       return false;
     }
@@ -70,6 +79,28 @@ public class SaveManager {
     SaveData data = new SaveData(cleanMoney, dirtyMoney, quantities);
     apply(state, data);
     return true;
+  }
+
+  public SaveSlotInfo readSlotInfo(int slot) throws IOException {
+    Path saveFile = resolveSlot(slot);
+    if (!Files.exists(saveFile)) {
+      return new SaveSlotInfo(slot, false, 0, 0, 0);
+    }
+
+    Properties properties = new Properties();
+    try (InputStream stream = Files.newInputStream(saveFile)) {
+      properties.load(stream);
+    }
+
+    double cleanMoney = parseDouble(properties.getProperty(CLEAN_MONEY_KEY), 0);
+    double dirtyMoney = parseDouble(properties.getProperty(DIRTY_MONEY_KEY), 0);
+    long lastModified = Files.getLastModifiedTime(saveFile).toMillis();
+    return new SaveSlotInfo(slot, true, cleanMoney, dirtyMoney, lastModified);
+  }
+
+  private Path resolveSlot(int slot) {
+    int safeSlot = Math.max(1, slot);
+    return saveDirectory.resolve("save-slot-" + safeSlot + ".properties");
   }
 
   private void apply(GameState state, SaveData data) {
