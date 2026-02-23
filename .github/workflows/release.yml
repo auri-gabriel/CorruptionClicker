@@ -27,7 +27,7 @@ jobs:
       - name: Build JAR
         run: mvn -B clean package
 
-      - name: Create GitHub Release + upload JAR
+      - name: Create GitHub Release + upload runnable JAR
         uses: softprops/action-gh-release@v2
         with:
-          files: target/*.jar
+          files: target/*-all.jar

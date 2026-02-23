@@ -54,11 +54,7 @@
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>3.4.2</version>
                 <configuration>
-                    <archive>
-                        <manifest>
-                            <mainClass>com.aurigabriel.Main</mainClass>
-                        </manifest>
-                    </archive>
+                    <skip>true</skip>
                 </configuration>
             </plugin>
 
@@ -82,6 +78,26 @@
                                     <mainClass>com.aurigabriel.Main</mainClass>
                                 </transformer>
                             </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <delete
+                                    file="${project.build.directory}/${project.build.finalName}.jar" />
+                            </target>
                         </configuration>
                     </execution>
                 </executions>
